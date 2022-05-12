@@ -1,4 +1,5 @@
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -29,17 +30,26 @@ class UserView(APIView):
 
         return Response(serializer.data, status.HTTP_201_CREATED)
 
+    def get(self, request: Request):
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+
+        return Response(
+            serializer.data, status.HTTP_200_OK
+        )
+
 
 class LoginView(APIView):
     def post(self, request: Request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        user: User = User.objects.filter(
-            email=serializer.validated_data["email"]
-        ).first()
+        user = authenticate(
+            username=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+        )
 
-        if not user or not check_password(serializer.validated_data["password"], user.password):
+        if not user:
             return Response({
                 "message": "Invalid password or e-mail address"}, status.HTTP_401_UNAUTHORIZED
             )
