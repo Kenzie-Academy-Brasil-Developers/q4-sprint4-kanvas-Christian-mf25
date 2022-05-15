@@ -10,7 +10,10 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    username = models.CharField(max_length=150, null=True)
+    username = models.CharField(max_length=150, null=True, unique=True)
+    address = models.ForeignKey(
+        "address.Address", on_delete=models.CASCADE, related_name="address", null=True
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
