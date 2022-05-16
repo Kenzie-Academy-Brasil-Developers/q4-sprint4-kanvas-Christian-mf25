@@ -25,7 +25,8 @@ class UserView(APIView):
 
         if found_user:
             return Response(
-                {"message": "User already exists"}, status.HTTP_409_CONFLICT
+                {"message": "User already exists"},
+				status.HTTP_422_UNPROCESSABLE_ENTITY
             )
 
         user = User.objects.create(**serializer.validated_data)
@@ -33,14 +34,18 @@ class UserView(APIView):
         user.save()
         serializer = UserSerializer(user)
 
-        return Response(serializer.data, status.HTTP_201_CREATED)
+        return Response(
+			serializer.data,
+			status.HTTP_201_CREATED
+		)
 
     def get(self, request: Request):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
 
         return Response(
-            serializer.data, status.HTTP_200_OK
+            serializer.data,
+			status.HTTP_200_OK
         )
 
 
@@ -56,11 +61,13 @@ class LoginView(APIView):
 
         if not user:
             return Response({
-                "message": "Invalid password or e-mail address"}, status.HTTP_401_UNAUTHORIZED
+                "message": "Invalid password or e-mail address"},
+				status.HTTP_401_UNAUTHORIZED
             )
 
         token, _ = Token.objects.get_or_create(user=user)
 
         return Response(
-            {"token": token.key}, status.HTTP_200_OK
+            {"token": token.key},
+			status.HTTP_200_OK
         )

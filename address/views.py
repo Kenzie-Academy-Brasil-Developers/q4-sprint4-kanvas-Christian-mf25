@@ -3,11 +3,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.views import APIView
+from rest_framework import status
 
 from address.serializers import AddressSerializer
+from user.serializers import UserSerializer
 from address.models import Address
 from user.models import User
-from user.serializers import UserSerializer
 
 class AddressView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -28,4 +29,7 @@ class AddressView(APIView):
         data = request.data
         data["users"] = users
 
-        return Response(data, 201)
+        return Response(
+			data,
+			status.HTTP_200_OK
+		)
