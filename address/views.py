@@ -26,10 +26,10 @@ class AddressView(APIView):
 
         users = [UserSerializer(user).data for user in users_list]
 
-        data = request.data
+        data = dict(uuid=create_address[0].uuid, **request.data)
         data["users"] = users
 
         return Response(
-			data,
-			status.HTTP_200_OK
-		)
+            data,
+            status.HTTP_200_OK
+        )

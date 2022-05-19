@@ -15,6 +15,7 @@ from course.serializers import CourseSerializer, PatchCourseSerializer, Register
 from course.permissions import IsAdmin
 from course.models import Course
 from user.models import User
+from user.serializers import UserSerializer
 
 
 class CourseView(APIView):
@@ -36,8 +37,8 @@ class CourseView(APIView):
 
         except IntegrityError as e:
             return Response(
-                {"message": "Name already exists"},
-                status.HTTP_409_CONFLICT
+                {"message": "Course already exists"},
+                status.HTTP_422_UNPROCESSABLE_ENTITY
             )
 
     def get(self, request: Request):
@@ -49,14 +50,21 @@ class CourseView(APIView):
             status.HTTP_200_OK
         )
 
+
 class CourseUuidView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAdmin]
 
-    def get(self, request: Request, course_uuid: str):
+    def get(self, request: Request, uuid: str):
         try:
-            course = Course.objects.filter(pk=course_uuid).first()
+            course = Course.objects.filter(pk=uuid).first()
             serializer = CourseSerializer(course)
+
+            if serializer["name"].value == "":
+                return Response(
+                    {"message": "Course does not exist"},
+                    status.HTTP_404_NOT_FOUND
+                )
 
             return Response(
                 serializer.data,
@@ -69,15 +77,21 @@ class CourseUuidView(APIView):
                 status.HTTP_404_NOT_FOUND
             )
 
-    def patch(self, request: Request, course_uuid: str):
+    def patch(self, request: Request, uuid: str):
         serializer = PatchCourseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            course_to_update = Course.objects.filter(pk=course_uuid)
+            course_to_update = Course.objects.filter(pk=uuid)
             course_to_update.update(**serializer.validated_data)
-            course = Course.objects.filter(pk=course_uuid).first()
+            course = Course.objects.filter(pk=uuid).first()
             course_updated = CourseSerializer(course)
+
+            if not course_to_update:
+                return Response(
+                    {"message": "Course does not exist"},
+                    status.HTTP_404_NOT_FOUND
+                )
 
             return Response(
                 course_updated.data,
@@ -86,8 +100,8 @@ class CourseUuidView(APIView):
 
         except IntegrityError as e:
             return Response(
-                {"message": "Course name already exists"},
-                status.HTTP_409_CONFLICT
+                {"message": "This course name already exists"},
+                status.HTTP_422_UNPROCESSABLE_ENTITY
             )
 
         except ValidationError as e:
@@ -95,9 +109,9 @@ class CourseUuidView(APIView):
                 {"message": "Course does not exist"},
                 status.HTTP_404_NOT_FOUND
             )
-    
-    def delete(self, request: Request, course_uuid: str):
-        course = Course.objects.filter(pk=course_uuid).first()
+
+    def delete(self, request: Request, uuid: str):
+        course = Course.objects.filter(pk=uuid).first()
 
         if not course:
             return Response(
@@ -110,19 +124,38 @@ class CourseUuidView(APIView):
             "",
             status.HTTP_204_NO_CONTENT
         )
-    
+
 
 @api_view(["PUT"])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAdmin])
-def register_instructor(request: Request, course_uuid: str):
+def register_instructor(request: Request, uuid: str):
     serializer = RegisterInstructorSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-
     try:
-        course_to_update = Course.objects.filter(pk=course_uuid)
+        course_to_update = Course.objects.filter(pk=uuid)
         instructor = User.objects.filter(
             pk=request.data["instructor_id"]).first()
+        
+        if not course_to_update:
+            return Response(
+                {"message": "Course does not exist"},
+                status.HTTP_404_NOT_FOUND
+            )
+
+
+        try:
+            if instructor.instructor_course:
+                course_to_remove_instructor = Course.objects.filter(
+                    pk=instructor.instructor_course.uuid)
+                course_to_remove_instructor.update(instructor=None)
+        except:
+            ...
+            
+        if not instructor:
+            return Response(
+                {'message': 'Invalid instructor_id'}, status.HTTP_404_NOT_FOUND
+            )
 
         if not instructor.is_admin:
             return Response(
@@ -131,10 +164,9 @@ def register_instructor(request: Request, course_uuid: str):
             )
 
         course_to_update.update(**serializer.validated_data)
-        course = Course.objects.filter(pk=course_uuid).first()
+        course = Course.objects.filter(pk=uuid).first()
         course_updated = CourseSerializer(course)
         course_updated = course_updated.data
-
         return Response(
             course_updated,
             status.HTTP_200_OK
@@ -142,7 +174,6 @@ def register_instructor(request: Request, course_uuid: str):
 
     except ValidationError as e:
         instructor = e.args[2]["value"]
-
         if instructor == request.data["instructor_id"]:
             return Response(
                 {"message": "Invalid instructor_id"},
@@ -158,17 +189,23 @@ def register_instructor(request: Request, course_uuid: str):
 @api_view(["PUT"])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAdmin])
-def register_student(request: Request, course_uuid: str):
+def register_student(request: Request, uuid: str):
     serializer = RegisterStudentSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     try:
-        course_to_update = Course.objects.filter(pk=course_uuid).first()
+        course_to_update = Course.objects.filter(pk=uuid).first()
         students = [
             User.objects.filter(pk=student_uuid).first()
             for student_uuid
             in serializer.validated_data["students_id"]
         ]
+
+        if not course_to_update:
+            return Response(
+                {"message": "Course does not exist"},
+                status.HTTP_404_NOT_FOUND
+            )
 
         if None in students:
             return Response(
@@ -183,7 +220,7 @@ def register_student(request: Request, course_uuid: str):
             )
 
         course_to_update.students.set(serializer.validated_data["students_id"])
-        course = Course.objects.filter(pk=course_uuid).first()
+        course = Course.objects.filter(pk=uuid).first()
         course_updated = CourseSerializer(course)
         course_updated = course_updated.data
 

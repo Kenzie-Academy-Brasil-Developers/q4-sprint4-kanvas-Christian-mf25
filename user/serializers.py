@@ -6,7 +6,7 @@ class UserSerializer(serializers.Serializer):
 	email = serializers.EmailField()
 	first_name = serializers.CharField()
 	last_name = serializers.CharField()
-	username = serializers.CharField()
+	username = serializers.CharField(required=False)
 	password = serializers.CharField(write_only=True)
 
 class LoginSerializer(serializers.Serializer):

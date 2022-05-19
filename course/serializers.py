@@ -3,7 +3,7 @@ from rest_framework import serializers
 from user.serializers import UserSerializer
 
 class CourseSerializer(serializers.Serializer):
-	course_uuid = serializers.CharField(read_only=True)
+	uuid = serializers.CharField(read_only=True)
 	name = serializers.CharField()
 	demo_time = serializers.TimeField()
 	created_at = serializers.DateTimeField(read_only=True)
